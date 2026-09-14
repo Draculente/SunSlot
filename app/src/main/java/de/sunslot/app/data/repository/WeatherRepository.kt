@@ -59,6 +59,21 @@ class WeatherRepository private constructor(context: Context) {
         }
     }
 
+    /**
+     * Cache-only read (no network) - fast, used by the widget to keep
+     * `provideGlance` lightweight. Falls back to defaults if no coordinates.
+     */
+    suspend fun cachedForecastForNextDays(days: Int = 3): List<HourForecast> {
+        val coords = settings.coordinates.first()
+        val today = LocalDate.now(ZoneId.systemDefault())
+        val endDate = today.plusDays(days.toLong())
+        return loadCachedRange(
+            today.atStartOfDay(ZoneId.systemDefault()).toEpochSecond() * 1000,
+            endDate.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toEpochSecond() * 1000,
+            coords.lat, coords.lon
+        )
+    }
+
     private suspend fun fallbackToOpenMeteo(lat: Double, lon: Double, days: Int): List<HourForecast> {
         return try {
             val records = openMeteo.fetchHourlyForecast(lat, lon, days)
@@ -75,6 +90,8 @@ class WeatherRepository private constructor(context: Context) {
     suspend fun coordinates() = settings.coordinates.first()
     suspend fun locationName() = settings.lastKnownLocationName.first()
     suspend fun lastUpdatedAt() = settings.lastUpdatedAt.first()
+    suspend fun lastSyncRequestedAt() = settings.lastSyncRequestedAt.first()
+    suspend fun updateLastSyncRequestedAt(timestamp: Long) = settings.updateLastSyncRequestedAt(timestamp)
     suspend fun updateCoordinates(lat: Double, lon: Double) = settings.updateCoordinates(lat, lon)
     suspend fun updateLocationName(name: String) = settings.updateLocationName(name)
     fun coordinatesFlow() = settings.coordinates

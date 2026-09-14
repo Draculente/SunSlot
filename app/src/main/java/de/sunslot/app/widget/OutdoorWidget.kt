@@ -1,6 +1,7 @@
 package de.sunslot.app.widget
 
 import android.content.Context
+import android.util.Log
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.unit.dp
@@ -43,6 +44,9 @@ import de.sunslot.app.domain.scorer.OutdoorWindowScorer
 import de.sunslot.app.util.WeatherFormatting
 import de.sunslot.app.worker.SyncWeatherWorker
 
+private const val TAG = "OutdoorWidget"
+private const val SYNC_THROTTLE_MS = 60L * 1000
+
 class OutdoorWidget : GlanceAppWidget() {
 
     override val sizeMode: SizeMode = SizeMode.Exact
@@ -51,12 +55,24 @@ class OutdoorWidget : GlanceAppWidget() {
         val (days, locationName, lastUpdated) = try {
             val repo = WeatherRepository.getInstance(context)
             val coords = repo.coordinates()
-            val forecast = repo.getForecastForNextDays(days = 3)
+            // Cache-first: the network fetch happens via SyncWeatherWorker so the
+            // widget update stays fast and reliable (no Glance timeout issues).
+            val forecast = repo.cachedForecastForNextDays(days = 3)
             val scored = OutdoorWindowScorer.scoreWindows(forecast, coords.lat, coords.lon, days = 3)
-            val name = repo.locationName()
-            Triple(scored, name, repo.lastUpdatedAt())
+            Triple(scored, repo.locationName(), repo.lastUpdatedAt())
         } catch (e: Exception) {
+            Log.w(TAG, "provideGlance failed", e)
             Triple(emptyList<DayOutdoorWindow>(), "", 0L)
+        }
+
+        if (days.isEmpty()) {
+            val repo = WeatherRepository.getInstance(context)
+            val now = System.currentTimeMillis()
+            if (now - repo.lastSyncRequestedAt() > SYNC_THROTTLE_MS) {
+                repo.updateLastSyncRequestedAt(now)
+                SyncWeatherWorker.syncNow(context)
+                Log.i(TAG, "No cached data, scheduled immediate sync")
+            }
         }
 
         provideContent {
@@ -86,7 +102,7 @@ class OutdoorWidget : GlanceAppWidget() {
             contentAlignment = Alignment.TopStart
         ) {
             if (days.isEmpty()) {
-                EmptyWidgetState()
+                EmptyWidgetState(hasDataEver = lastUpdated > 0L)
             } else {
                 DaysList(context, days, locationName, lastUpdated)
             }
@@ -202,14 +218,14 @@ class OutdoorWidget : GlanceAppWidget() {
     }
 
     @Composable
-    private fun EmptyWidgetState() {
+    private fun EmptyWidgetState(hasDataEver: Boolean) {
         Column(
             modifier = GlanceModifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "Wetterdaten werden geladen…",
+                text = if (hasDataEver) "Keine Daten gefunden – Netzwerk prüfen" else "Wird aktualisiert…",
                 style = TextStyle(
                     color = ColorProvider(R.color.widget_on_surface),
                     fontSize = 14.sp

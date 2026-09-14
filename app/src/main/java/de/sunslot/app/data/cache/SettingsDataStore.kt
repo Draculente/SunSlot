@@ -36,6 +36,10 @@ class SettingsDataStore(context: Context) {
         prefs[KEY_LAST_UPDATED_AT] ?: 0L
     }
 
+    val lastSyncRequestedAt: Flow<Long> = dataStore.data.map { prefs ->
+        prefs[KEY_LAST_SYNC_REQUESTED_AT] ?: 0L
+    }
+
     val favorites: Flow<List<FavoriteLocation>> = dataStore.data.map { prefs ->
         prefs[KEY_FAVORITES]?.let { raw ->
             runCatching { json.decodeFromString<List<FavoriteLocation>>(raw) }.getOrNull()
@@ -61,6 +65,12 @@ class SettingsDataStore(context: Context) {
         }
     }
 
+    suspend fun updateLastSyncRequestedAt(timestamp: Long) {
+        dataStore.edit { prefs ->
+            prefs[KEY_LAST_SYNC_REQUESTED_AT] = timestamp
+        }
+    }
+
     suspend fun saveFavorites(favorites: List<FavoriteLocation>) {
         dataStore.edit { prefs ->
             prefs[KEY_FAVORITES] = json.encodeToString(favorites)
@@ -77,6 +87,7 @@ class SettingsDataStore(context: Context) {
         private val KEY_LON = doublePreferencesKey("lon")
         private val KEY_LOCATION_NAME = stringPreferencesKey("location_name")
         private val KEY_LAST_UPDATED_AT = longPreferencesKey("last_updated_at")
+        private val KEY_LAST_SYNC_REQUESTED_AT = longPreferencesKey("last_sync_requested_at")
         private val KEY_FAVORITES = stringPreferencesKey("favorites")
 
         const val DEFAULT_LAT = 53.8655
