@@ -1,0 +1,38 @@
+# Gradle
+.gradle/
+build/
+app/build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# Local configuration (SDK paths etc.)
+local.properties
+
+# IDEA / Android Studio
+.idea/
+*.iml
+.fleet/
+
+# Android / Kotlin
+.kotlin/
+captures/
+.cxx/
+*.class
+*.log
+
+# Signing & secrets - NEVER commit these!
+*.jks
+*.keystore
+keystore*
+weather-highlight.jks
+sunslot.jks
+key.properties
+
+# Binaries
+*.apk
+*.aab
+*.ap_
+*.hprof
+
+# OS / editor
+.DS_Store
+Thumbs.db

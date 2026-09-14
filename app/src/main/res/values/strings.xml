@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">SunSlot</string>
+    <string name="widget_name">SunSlot Zeitfenster</string>
+    <string name="widget_description">Zeigt die besten 3 Outdoor-Zeitfenster der nächsten Tage an.</string>
+</resources>
